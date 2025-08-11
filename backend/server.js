@@ -3,14 +3,21 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
 import urlRoutes from "./routes/urlRoutes.js";
 import Url from "./models/Url.js";
 
 dotenv.config();
 const app = express();
 
+// Fix __dirname in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Middleware
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // API routes
@@ -30,6 +37,17 @@ app.get("/:shortcode", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+// Serve frontend in production
+if (process.env.NODE_ENV === "production") {
+  const frontendPath = path.join(__dirname, "frontend", "build");
+  app.use(express.static(frontendPath));
+
+  // Serve index.html for unknown routes
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(frontendPath, "index.html"));
+  });
+}
 
 // Database connection
 mongoose
