@@ -40,7 +40,6 @@
 
 // export default router;
 
-
 // routes/urlRoutes.js
 import express from "express";
 import shortid from "shortid";
@@ -60,14 +59,21 @@ router.post("/shorten", async (req, res) => {
 
   try {
     const shortCode = shortid.generate();
+
     const newUrl = new Url({
       originalUrl,
       shortCode,
       visits: 0,
     });
+
     await newUrl.save();
 
-    res.json({ shortUrl: `${process.env.BASE_URL}/${shortCode}` });
+    // Use BASE_URL if available, else fall back to request host
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get("host")}`;
+
+    res.json({
+      shortUrl: `${baseUrl}/${shortCode}`,
+    });
   } catch (err) {
     console.error("Error creating short URL:", err);
     res.status(500).json({ error: "Server error" });
@@ -75,8 +81,7 @@ router.post("/shorten", async (req, res) => {
 });
 
 /**
- * GET /api/urls - List all shortened URLs (Admin Page)
- * ✅ Must be ABOVE the shortcode redirect route
+ * GET /api/urls - List all shortened URLs
  */
 router.get("/urls", async (req, res) => {
   try {
@@ -84,25 +89,6 @@ router.get("/urls", async (req, res) => {
     res.json(urls);
   } catch (err) {
     console.error("Error fetching URLs:", err);
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
-
-router.get("/:shortcode", async (req, res) => {
-  try {
-    const url = await Url.findOne({ shortCode: req.params.shortcode });
-
-    if (url) {
-      url.visits = (url.visits || 0) + 1;
-      await url.save();
-
-      return res.redirect(url.originalUrl);
-    } else {
-      return res.status(404).json({ error: "No URL found" });
-    }
-  } catch (err) {
-    console.error("Error redirecting short URL:", err);
     res.status(500).json({ error: "Server error" });
   }
 });

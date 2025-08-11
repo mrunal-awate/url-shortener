@@ -26,14 +26,16 @@ app.use("/api", urlRoutes);
 // Redirect route (root level)
 app.get("/:shortcode", async (req, res) => {
   try {
-    const url = await Url.findOne({ shortCode: req.params.shortcode });
+    const { shortcode } = req.params;
+    const url = await Url.findOne({ shortCode: shortcode });
+
     if (url) {
       return res.redirect(url.originalUrl);
     } else {
       return res.status(404).json({ error: "No URL found" });
     }
   } catch (err) {
-    console.error(err);
+    console.error("Redirect error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
@@ -43,17 +45,26 @@ if (process.env.NODE_ENV === "production") {
   const frontendPath = path.join(__dirname, "frontend", "build");
   app.use(express.static(frontendPath));
 
-  // Serve index.html for unknown routes
+  // Always return index.html for unknown routes (must be last)
   app.get("*", (req, res) => {
-    res.sendFile(path.resolve(frontendPath, "index.html"));
+    res.sendFile(path.join(frontendPath, "index.html"));
   });
 }
 
-// Database connection
+// Connect to MongoDB
 mongoose
-  .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  })
   .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => console.error("❌ DB connection error:", err));
+  .catch((err) => {
+    console.error("❌ DB connection error:", err);
+    process.exit(1); // Stop app if DB fails
+  });
 
+// Start server
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+});
